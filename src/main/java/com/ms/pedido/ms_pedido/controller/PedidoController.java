@@ -2,6 +2,7 @@ package com.ms.pedido.ms_pedido.controller;
 
 import com.ms.pedido.ms_pedido.dto.PedidoRequestDTO;
 import com.ms.pedido.ms_pedido.dto.PedidoResponseDTO;
+import com.ms.pedido.ms_pedido.model.EstadoPedido;
 import com.ms.pedido.ms_pedido.service.PedidoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,6 @@ public class PedidoController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    
     @GetMapping("/usuario/{idUsuario}")
     public ResponseEntity<List<PedidoResponseDTO>> obtenerPedidosPorUsuario(@PathVariable String idUsuario) {
         List<PedidoResponseDTO> pedidos = pedidoService.obtenerPedidosPorUsuario(idUsuario);
@@ -36,5 +36,12 @@ public class PedidoController {
     public ResponseEntity<PedidoResponseDTO> obtenerPedidoPorId(@PathVariable Long idPedido) {
         PedidoResponseDTO pedido = pedidoService.obtenerPedidoPorId(idPedido);
         return ResponseEntity.ok(pedido);
+    }
+    @PatchMapping("/{id}/estado")
+    public ResponseEntity<PedidoResponseDTO> actualizarEstado(
+            @PathVariable Long id, 
+            @RequestParam EstadoPedido estado) {
+        PedidoResponseDTO pedidoActualizado = pedidoService.actualizarEstado(id, estado);
+        return ResponseEntity.ok(pedidoActualizado);
     }
 }

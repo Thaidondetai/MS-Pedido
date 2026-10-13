@@ -28,7 +28,18 @@ public class PedidoService {
             throw new IllegalArgumentException("Uno o más productos corresponden a especies exóticas y requieren un número de registro SAG válido.");
         }
 
-        EstadoPedido estadoInicial = requiereSag ? EstadoPedido.PENDIENTE_VALIDACION_SAG : EstadoPedido.PAGADO;
+        // --- AJUSTE ESTADO INICIAL ---
+        // Si requiere SAG, pasa a revisión SAG.
+        // Si es WEBPAY, nace como PENDIENTE_PAGO (o PENDIENTE) hasta que Transbank confirme.
+        // De lo contrario (ej: transferencia/efectivo), nace como PAGADO.
+        EstadoPedido estadoInicial;
+        if (requiereSag) {
+            estadoInicial = EstadoPedido.PENDIENTE_VALIDACION_SAG;
+        } else if ("WEBPAY".equalsIgnoreCase(request.getMetodoPago())) {
+            estadoInicial = EstadoPedido.PENDIENTE_PAGO; // O usa EstadoPedido.PENDIENTE según tu Enum
+        } else {
+            estadoInicial = EstadoPedido.PAGADO;
+        }
 
         BigDecimal montoTotal = request.getDetalles().stream()
                 .map(d -> d.getPrecioUnitario().multiply(BigDecimal.valueOf(d.getCantidad())))
@@ -42,7 +53,6 @@ public class PedidoService {
                 .metodoPago(request.getMetodoPago())
                 .build();
 
-        
         List<DetallePedido> detalles = request.getDetalles().stream().map(d -> 
             DetallePedido.builder()
                     .idProducto(d.getIdProducto())
@@ -83,6 +93,18 @@ public class PedidoService {
         return mapearAResponseDTO(pedidoGuardado);
     }
 
+    // --- NUEVO MÉTODO: Actualizar estado desde Transbank / BFF ---
+    @Transactional
+    public PedidoResponseDTO actualizarEstado(Long idPedido, EstadoPedido nuevoEstado) {
+        Pedido pedido = pedidoRepository.findById(idPedido)
+                .orElseThrow(() -> new RuntimeException("Pedido no encontrado con ID: " + idPedido));
+
+        pedido.setEstado(nuevoEstado);
+        Pedido pedidoActualizado = pedidoRepository.save(pedido);
+
+        return mapearAResponseDTO(pedidoActualizado);
+    }
+
     @Transactional(readOnly = true)
     public List<PedidoResponseDTO> obtenerPedidosPorUsuario(String idUsuario) {
         return pedidoRepository.findByIdUsuarioOrderByFechaPedidoDesc(idUsuario)
@@ -98,7 +120,6 @@ public class PedidoService {
         return mapearAResponseDTO(pedido);
     }
 
-    
     private PedidoResponseDTO mapearAResponseDTO(Pedido pedido) {
         EnvioDTO envioDto = EnvioDTO.builder()
                 .rutReceptor(pedido.getEnvio().getRutReceptor())
