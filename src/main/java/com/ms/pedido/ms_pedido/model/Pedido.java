@@ -11,8 +11,8 @@ import java.util.List;
 @Table(name = "pedidos")
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor 
+@AllArgsConstructor 
 @Builder
 public class Pedido {
 

@@ -17,6 +17,8 @@ import java.util.stream.Collectors;
 public class PedidoService {
 
     private final PedidoRepository pedidoRepository;
+    private final SqsProducerService sqsProducerService;
+
 
     @Transactional
     public PedidoResponseDTO crearPedido(PedidoRequestDTO request) {
@@ -90,7 +92,16 @@ public class PedidoService {
 
         Pedido pedidoGuardado = pedidoRepository.save(pedido);
 
-        return mapearAResponseDTO(pedidoGuardado);
+        // 1. Mapea a DTO como siempre
+        PedidoResponseDTO response = mapearAResponseDTO(pedidoGuardado);
+
+        // 2. Enviamos el evento a SQS si ya está pagado
+        if (pedidoGuardado.getEstado() == EstadoPedido.PAGADO) {
+            sqsProducerService.publicarPedidoRealizado(response);
+        }
+
+        // 3. Retornamos el DTO exactamente igual que antes
+        return response;
     }
 
     // --- NUEVO MÉTODO: Actualizar estado desde Transbank / BFF ---
@@ -101,8 +112,15 @@ public class PedidoService {
 
         pedido.setEstado(nuevoEstado);
         Pedido pedidoActualizado = pedidoRepository.save(pedido);
+        PedidoResponseDTO response = mapearAResponseDTO(pedidoActualizado);
 
-        return mapearAResponseDTO(pedidoActualizado);
+        // --- PUBLICACIÓN EN SQS (Escenario 2) ---
+        // Cuando Webpay/Transbank confirma el pago exitoso, el estado cambia a PAGADO y publicamos a SQS
+        if (nuevoEstado == EstadoPedido.PAGADO) {
+            sqsProducerService.publicarPedidoRealizado(response);
+        }
+
+        return response;
     }
 
     @Transactional(readOnly = true)
