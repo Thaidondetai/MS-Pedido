@@ -44,4 +44,9 @@ public class PedidoController {
         PedidoResponseDTO pedidoActualizado = pedidoService.actualizarEstado(id, estado);
         return ResponseEntity.ok(pedidoActualizado);
     }
+    @PostMapping("/iniciar-pago")
+    public ResponseEntity<PedidoResponseDTO> iniciarPago(@Valid @RequestBody PedidoRequestDTO request) {
+        PedidoResponseDTO response = pedidoService.crearPedido(request);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
+    }
 }
